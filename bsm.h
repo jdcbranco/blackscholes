@@ -61,7 +61,7 @@ var forward(double K, var const& S, var const& tau, var const& r, var const& q);
  * @param q Starting value for Implied Dividend search
  * @return Implied Dividend yield
  */
-var implied_dividend(double K, var const& F, var const& S, var const& tau, var const& r, var q = 0.0);
+var implied_dividend(double K, double F, var const& S, var const& tau, var const& r, var q = 0.0);
 
 /**
  * Calculates the implied volatility using Newton-Raphson method.
@@ -76,6 +76,6 @@ var implied_dividend(double K, var const& F, var const& S, var const& tau, var c
  * @param sigma Starting value for Implied Vol search
  * @return Implied Vol
  */
-var implied_volatility(CP cp, double K, var const& P, var const& S, var const& tau, var const& r, var const& q, var sigma = 0.10);
+var implied_volatility(CP cp, double K, double P, var const& S, var const& tau, var const& r, var const& q, var sigma = 0.10);
 
 #endif //BLACKSCHOLES_BSM_H

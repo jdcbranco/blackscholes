@@ -45,10 +45,9 @@ static void BM_EuropeanCall_IVol(benchmark::State& state) {
     var q = 0.05;
 
     var call = european(CP::call, K, S, variance, tau, r, q);
-    var iv = implied_volatility(CP::call, K, call, S, tau, r, q);
 
     for (auto _: state) {
-        var iv = implied_volatility(CP::call, K, call, S, tau, r, q);
+        var iv = implied_volatility(CP::call, K, val(call), S, tau, r, q);
     }
 }
 BENCHMARK(BM_EuropeanCall_IVol);

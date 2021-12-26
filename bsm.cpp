@@ -25,7 +25,7 @@ var forward(var const& S, var const& tau, var const& r, var const& q) {
     return S * exp ((r-q) * tau);
 }
 
-var implied_dividend(double K, var const& F, var const& S, var const& tau, var const& r, var q) {
+var implied_dividend(double K, double F, var const& S, var const& tau, var const& r, var q) {
     var f = abs(F - forward(K, S, tau, r, q));
 
     for(int i = 0; i<100; i++) {
@@ -41,7 +41,7 @@ var implied_dividend(double K, var const& F, var const& S, var const& tau, var c
     return q;
 }
 
-var implied_volatility(CP cp, double K, var const& P, var const& S, var const& tau, var const& r, var const& q, var sigma) {
+var implied_volatility(CP cp, double K, double P, var const& S, var const& tau, var const& r, var const& q, var sigma) {
     var variance = sigma*sigma;
     var f = abs(P - european(cp,K,S,variance,tau,r,q));
 
