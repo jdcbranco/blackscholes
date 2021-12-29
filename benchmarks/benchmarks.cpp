@@ -1,55 +1,94 @@
 #include <benchmark/benchmark.h>
+#include <autodiff/reverse/var.hpp>
+#include <autodiff/reverse/var/eigen.hpp>
 
-#include "../bsm.h"
+#include "../analytical.h"
+#include "../options.h"
+#include "../greeks.h"
 
-static void BM_EuropeanCall(benchmark::State& state) {
+using namespace autodiff;
+
+static void EuropeanCall_Pricing(benchmark::State& state) {
     double const K = 100.0;
     var S = 105.0;
     var sigma = 5;
-    var variance = sigma*sigma;
     var tau = 30.0 / 365;
     var r = 1.25 / 100;
     var q = 0.0;
 
+    options::params<var> market_state{ S, sigma, tau, r, q };
+    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
+
+    options::european_call<var> europeanCall{K};
+
     for (auto _: state) {
-        var call = european(CP::call, K, S, variance, tau, r, q);
+        auto callPricing = bsm_reverse_mode.solve(europeanCall);
     }
 }
-BENCHMARK(BM_EuropeanCall);
+BENCHMARK(EuropeanCall_Pricing);
 
-static void BM_EuropeanCall_Greeks(benchmark::State& state) {
+
+static void EuropeanCall_Delta(benchmark::State& state) {
+    using namespace greeks;
     double const K = 100.0;
     var S = 105.0;
     var sigma = 5;
-    var variance = sigma*sigma;
     var tau = 30.0 / 365;
     var r = 1.25 / 100;
     var q = 0.0;
 
-    var call = european(CP::call, K, S, variance, tau, r, q);
+    options::params<var> market_state{ S, sigma, tau, r, q };
+    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
 
+    options::european_call<var> europeanCall{K};
+
+    auto callPricing = bsm_reverse_mode.solve(europeanCall);
     for (auto _: state) {
-        auto [delta, vega, theta, rho] = derivativesx(call, wrt(S, sigma, tau, r));
-        auto [gamma] = derivativesx(delta, wrt(S));
+        auto delta = greeks::delta(callPricing);
     }
 }
-BENCHMARK(BM_EuropeanCall_Greeks);
+BENCHMARK(EuropeanCall_Delta);
 
-static void BM_EuropeanCall_IVol(benchmark::State& state) {
+static void EuropeanCall_All_Greeks(benchmark::State& state) {
+    using namespace greeks;
+    double const K = 100.0;
+    var S = 105.0;
+    var sigma = 5;
+    var tau = 30.0 / 365;
+    var r = 1.25 / 100;
+    var q = 0.0;
+
+    options::params<var> market_state{ S, sigma, tau, r, q };
+    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
+
+    options::european_call<var> europeanCall{K};
+
+    auto callPricing = bsm_reverse_mode.solve(europeanCall);
+    for (auto _: state) {
+        auto [delta, gamma, vega, theta, rho, psi] = all_greeks(callPricing);
+    }
+}
+BENCHMARK(EuropeanCall_All_Greeks);
+
+static void EuropeanCall_IVol(benchmark::State& state) {
+    using namespace greeks;
     double const K = 100.0;
     var S = 105.0;
     var sigma = 0.30;
-    var variance = sigma*sigma;
     var tau = 30.0 / 365;
     var r = 1.25 / 100;
     var q = 0.05;
 
-    var call = european(CP::call, K, S, variance, tau, r, q);
+    options::params<var> market_state{ S, sigma, tau, r, q };
+    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
 
+    options::european_call<var> europeanCall{K};
+
+    auto callPricing = bsm_reverse_mode.solve(europeanCall);
     for (auto _: state) {
-        var iv = implied_volatility(CP::call, K, val(call), S, tau, r, q);
+        auto iv = bsm_reverse_mode.imply_volatility(europeanCall, val((var)callPricing));
     }
 }
-BENCHMARK(BM_EuropeanCall_IVol);
+BENCHMARK(EuropeanCall_IVol);
 
 BENCHMARK_MAIN();

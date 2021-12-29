@@ -1,51 +1,60 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-#include "../bsm.h"
+#include "../options.h"
+#include "../analytical.h"
+#include "../greeks.h"
 
-var kappa(double K, var S, var sigma, var tau, var r) {
-    auto const d1 = (log(S / K) + (r + sigma * sigma / 2) * tau) / (sigma * sqrt(tau));
-    return 0.5 * S * sqrt(tau) * one_div_root_two_pi * exp(-0.5 * d1*d1) / sigma;
-}
+using namespace autodiff;
 
 TEST_CASE("Call pricing") {
     double const K = 100.0;
     var S = 105.0;
     var sigma = 5;
-    var variance = sigma*sigma;
     var tau = 30.0 / 365;
     var r = 1.25 / 100;
     var q = 0.0;
-    var call = european(CP::call, K, S, variance, tau, r, q);
 
-    auto [delta, vega, theta, rho] = derivativesx(call, wrt(S, sigma, tau, r));
-    auto [gamma] = derivativesx(delta, wrt(S));
+    options::params<var> market_state{ S, sigma, tau, r, q };
+    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
 
-    REQUIRE( abs(call-56.5136) <= 1.0e-5);
-    REQUIRE( abs(delta-0.773818) <= 1.0e-5);
-    REQUIRE( abs(gamma-0.00199852) <= 1.0e-8);
+    options::european_call<var> europeanCall{K};
+
+    auto [call, greeks] = bsm_reverse_mode.solveForGreeks(europeanCall);
+    auto [delta, gamma, vega, theta, rho, psi] = greeks;
+
+    CHECK(call==Approx(56.5136));
+    CHECK(delta==Approx(0.773818));
+    CHECK(gamma==Approx(0.00199852));
+    REQUIRE(vega > 0.0);
 }
 
 TEST_CASE("Call Put Parity") {
     double const K = 100.0;
     var S = 105.0;
     var sigma = 5;
-    var variance = sigma*sigma;
     var tau = 30.0 / 365;
     var r = 1.25 / 100;
     var q = 0.0;
-    var call = european(CP::call, K, S, variance, tau, r, q);
-    var put = european(CP::put, K, S, variance, tau, r, q);
 
-    auto [call_delta, call_vega, call_theta, call_rho] = derivativesx(call, wrt(S, sigma, tau, r));
-    auto [call_gamma] = derivativesx(call_delta, wrt(S));
+    options::params<var> market_state{ S, sigma, tau, r, q };
+    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
 
-    auto [put_delta, put_vega, put_theta, put_rho] = derivativesx(put, wrt(S, sigma, tau, r));
-    auto [put_gamma] = derivativesx(put_delta, wrt(S));
+    options::european_call<var> europeanCall{K};
+    options::european_put<var> europeanPut{K};
+    options::forward<var> forwardInstrument{K};
 
-    var fwd = forward(K, S, tau, r, q);
-    auto [fwd_delta] = derivativesx(fwd, wrt(S));
+    auto [call, call_greeks] = bsm_reverse_mode.solveForGreeks(europeanCall);
+    auto [put, put_greeks] = bsm_reverse_mode.solveForGreeks(europeanPut);
 
+    auto [call_delta, call_gamma, call_vega, call_theta, call_rho, call_psi] = call_greeks;
+    auto [put_delta, put_gamma, put_vega, put_theta, put_rho, put_psi] = put_greeks;
+
+    auto fwdPricing = bsm_reverse_mode.solve(forwardInstrument);
+    auto [fwd_delta] = greeks::delta(fwdPricing);
+    auto fwd = (var)fwdPricing;
+
+    //CHECK((call-put)==Approx(fwd))
     REQUIRE( abs(call-put-fwd) <= 1.0e-5 );
     REQUIRE( abs(call_delta-put_delta-fwd_delta) <= 1.0e-10 );
     REQUIRE( abs(call_gamma-put_gamma) <= 1.0e-10 );
@@ -53,19 +62,3 @@ TEST_CASE("Call Put Parity") {
 
 }
 
-TEST_CASE("Test kappa") {
-    double const K = 15000.0;
-    var S = 15000.0;
-    var sigma = 0.21;
-    var variance = sigma * sigma;
-    var tau = 0.5;
-    var r = 0.0;
-    var q = 0.0;
-    var call = european(CP::call, K, S, variance, tau, r, q);
-
-    auto [autodiff_kappa] = derivativesx(call, wrt(variance));
-    auto calculated_kappa = kappa(K, S, sigma, tau, r);
-
-    REQUIRE(abs(autodiff_kappa - calculated_kappa) <= 1.0e-10 );
-
-}
