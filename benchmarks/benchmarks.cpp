@@ -1,94 +1,133 @@
 #include <benchmark/benchmark.h>
-#include <autodiff/reverse/var.hpp>
-#include <autodiff/reverse/var/eigen.hpp>
 
-#include "../analytical.h"
-#include "../options.h"
-#include "../greeks.h"
+#include "bsm.h"
 
-using namespace autodiff;
+using namespace bsm;
+using namespace bsm::chrono;
 
-static void EuropeanCall_Pricing(benchmark::State& state) {
-    double const K = 100.0;
-    var S = 105.0;
-    var sigma = 5;
-    var tau = 30.0 / 365;
-    var r = 1.25 / 100;
-    var q = 0.0;
-
-    options::params<var> market_state{ S, sigma, tau, r, q };
-    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
-
-    options::european_call<var> europeanCall{K};
+static void Benchmark_EC_Baseline_Price(benchmark::State& state) {
+    auto K = 100.0;
+    auto S = 100.0;
+    auto sigma = 0.20;
+    auto t = datetime::now();
+    auto r = 0.01;
+    auto q = 0.05;
+    mkt_params mktParams{S, sigma, t, r, q};
+    european_call europeanCall{K, t + 0.5_years};
+    analytical_solver<autodiff_off> solve{mktParams};
 
     for (auto _: state) {
-        auto callPricing = bsm_reverse_mode.solve(europeanCall);
+        auto callPricing = solve(europeanCall);
+        callPricing->price();
     }
 }
-BENCHMARK(EuropeanCall_Pricing);
+BENCHMARK(Benchmark_EC_Baseline_Price);
 
+static void Benchmark_EC_Baseline_Delta(benchmark::State& state) {
+    auto K = 100.0;
+    auto S = 100.0;
+    auto sigma = 0.20;
+    auto t = datetime::now();
+    auto r = 0.01;
+    auto q = 0.05;
+    mkt_params mktParams{S, sigma, t, r, q};
+    european_call europeanCall{K, t + 0.5_years};
+    analytical_solver<autodiff_off> solve{mktParams};
 
-static void EuropeanCall_Delta(benchmark::State& state) {
-    using namespace greeks;
-    double const K = 100.0;
-    var S = 105.0;
-    var sigma = 5;
-    var tau = 30.0 / 365;
-    var r = 1.25 / 100;
-    var q = 0.0;
+    auto callPricing = solve(europeanCall);
 
-    options::params<var> market_state{ S, sigma, tau, r, q };
-    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
-
-    options::european_call<var> europeanCall{K};
-
-    auto callPricing = bsm_reverse_mode.solve(europeanCall);
     for (auto _: state) {
-        auto delta = greeks::delta(callPricing);
+        callPricing->delta();
     }
 }
-BENCHMARK(EuropeanCall_Delta);
+BENCHMARK(Benchmark_EC_Baseline_Delta);
 
-static void EuropeanCall_All_Greeks(benchmark::State& state) {
-    using namespace greeks;
-    double const K = 100.0;
-    var S = 105.0;
-    var sigma = 5;
-    var tau = 30.0 / 365;
-    var r = 1.25 / 100;
-    var q = 0.0;
+static void Benchmark_EC_Dual_Price(benchmark::State& state) {
+    auto K = 100.0;
+    auto S = 100.0;
+    auto sigma = 0.20;
+    auto t = datetime::now();
+    auto r = 0.01;
+    auto q = 0.05;
+    mkt_params mktParams{S, sigma, t, r, q};
+    european_call europeanCall{K, t + 0.5_years};
+    analytical_solver<autodiff_dual> solve{mktParams};
 
-    options::params<var> market_state{ S, sigma, tau, r, q };
-    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
-
-    options::european_call<var> europeanCall{K};
-
-    auto callPricing = bsm_reverse_mode.solve(europeanCall);
     for (auto _: state) {
-        auto [delta, gamma, vega, theta, rho, psi] = all_greeks(callPricing);
+        auto callPricing = solve(europeanCall);
+        callPricing->price();
     }
 }
-BENCHMARK(EuropeanCall_All_Greeks);
+BENCHMARK(Benchmark_EC_Dual_Price);
 
-static void EuropeanCall_IVol(benchmark::State& state) {
-    using namespace greeks;
-    double const K = 100.0;
-    var S = 105.0;
-    var sigma = 0.30;
-    var tau = 30.0 / 365;
-    var r = 1.25 / 100;
-    var q = 0.05;
+//Autodiff Reverse mode
 
-    options::params<var> market_state{ S, sigma, tau, r, q };
-    analytical::analyticalmethod<var> bsm_reverse_mode{market_state};
+static void Benchmark_EC_Var_Price(benchmark::State& state) {
+    auto K = 100.0;
+    auto S = 100.0;
+    auto sigma = 0.20;
+    auto t = datetime::now();
+    auto r = 0.01;
+    auto q = 0.05;
+    mkt_params mktParams{S, sigma, t, r, q};
+    european_call europeanCall{K, t + 0.5_years};
+    analytical_solver<autodiff_var> solve{mktParams};
 
-    options::european_call<var> europeanCall{K};
-
-    auto callPricing = bsm_reverse_mode.solve(europeanCall);
     for (auto _: state) {
-        auto iv = bsm_reverse_mode.imply_volatility(europeanCall, val((var)callPricing));
+        auto callPricing = solve(europeanCall);
+        callPricing->price();
     }
 }
-BENCHMARK(EuropeanCall_IVol);
+BENCHMARK(Benchmark_EC_Var_Price);
+
+//Binomial method
+
+static void Benchmark_EC_CRR_Price(benchmark::State& state) {
+    auto K = 100.0;
+    auto S = 100.0;
+    auto sigma = 0.20;
+    auto t = datetime::now();
+    auto r = 0.01;
+    auto q = 0.05;
+    mkt_params mktParams{S, sigma, t, r, q};
+    european_call europeanCall{K, t + 0.5_years};
+    crr_solver<autodiff_off> solve{mktParams,400};
+
+    for (auto _: state) {
+        auto pricing = solve(europeanCall);
+        pricing->price();
+        pricing->delta();
+        pricing->gamma();
+        pricing->vega();
+        pricing->rho();
+        pricing->theta();
+        pricing->psi();
+    }
+}
+BENCHMARK(Benchmark_EC_CRR_Price);
+
+static void Benchmark_AP_CRR_Price(benchmark::State& state) {
+    auto K = 100.0;
+    auto S = 100.0;
+    auto sigma = 0.20;
+    auto t = datetime::now();
+    auto r = 0.01;
+    auto q = 0.05;
+    mkt_params mktParams{S, sigma, t, r, q};
+    american_put americanPut{K, t + 0.5_years};
+    crr_solver<autodiff_off> solve{mktParams,400};
+
+    for (auto _: state) {
+        auto pricing = solve(americanPut);
+        pricing->price();
+        pricing->delta();
+        pricing->gamma();
+        pricing->vega();
+        pricing->rho();
+        pricing->theta();
+        pricing->psi();
+    }
+}
+BENCHMARK(Benchmark_AP_CRR_Price);
 
 BENCHMARK_MAIN();

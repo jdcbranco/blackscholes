@@ -1,16 +1,12 @@
-#ifndef BLACKSCHOLES_LATTICE_H
-#define BLACKSCHOLES_LATTICE_H
-#include <algorithm>
-#include <ranges>
-#include <execution>
-#include <vector>
+#ifndef BSM_BINTREE_H
+#define BSM_BINTREE_H
+
 #include <cassert>
+#include <vector>
 #include <iostream>
 #include <iomanip>
 
-namespace lattice {
-    using namespace std;
-
+namespace bsm {
     template<typename T>
     class bintree {
 
@@ -46,28 +42,26 @@ namespace lattice {
 
     private:
         int steps_;
-        vector<vector<T>> lattice;
+        std::vector<std::vector<T>> lattice;
     };
 
     template<typename T>
-    ostream &operator<<(ostream &out, bintree<T> const &tree) {
+    std::ostream &operator<<(std::ostream &out, bintree<T> const &tree) {
         int size = tree.size();
         int tabs = 1 + (size + 1) / 2;
 
         for (int t = 0; t < size; ++t) {
             for (int k = 0; k < tabs; ++k) {
-                out << setw(4) << "\t";
+                out << std::setw(4) << "\t";
             }
             tabs -= 1;
             for (int i = 0; i <= t; ++i) {
                 T value = tree(t, i);
-                out << value << setw(4) << "\t";
+                out << value << std::setw(4) << "\t";
             }
             out << "\n";
         }
         return out;
     }
-
 }
-
-#endif //BLACKSCHOLES_LATTICE_H
+#endif //BSM_BINTREE_H

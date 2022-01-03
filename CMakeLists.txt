@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(blackscholes)
+project(bsm)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -10,20 +10,24 @@ find_package(autodiff REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(benchmark REQUIRED)
 
-#Main app
-add_executable(blackscholes main.cpp crr.cpp crr.h lattice.h analytical.h greeks.h options.cpp options.h random.cpp random.h lsmc.cpp lsmc.h)
-target_include_directories(blackscholes PRIVATE eigen3)
-target_link_libraries(blackscholes autodiff::autodiff Eigen3::Eigen)
+#bsm library
+add_library(bsm STATIC main.cpp random.cpp random.h bsm/bsm.h bsm/instruments.cpp bsm/instruments.h bsm/solver.h bsm/chrono.h bsm/chrono.cpp bsm/solver.cpp bsm/solver_autodiff_forward.cpp bsm/solver_autodiff_backward.cpp bsm/bintree.h bsm/solver_crr.cpp bsm/solver_crr_internals.h)
+target_include_directories(bsm PRIVATE eigen3 bsm)
+target_link_libraries(bsm autodiff::autodiff Eigen3::Eigen)
 
+#Main app
+add_executable(main main.cpp)
+target_include_directories(main PRIVATE bsm)
+target_link_libraries(main bsm)
 
 #Unit tests
-add_executable(unit_tests tst/test.cpp crr.cpp crr.h lattice.h analytical.h greeks.h options.cpp options.h random.cpp random.h lsmc.cpp lsmc.h)
-target_include_directories(unit_tests PRIVATE eigen3)
-target_link_libraries(unit_tests autodiff::autodiff Eigen3::Eigen)
+add_executable(tests tests/common.cpp random.cpp random.h bsm/bsm.h tests/instruments.cpp tests/pricing.cpp tests/chrono.cpp tests/pricing_crr.cpp)
+target_include_directories(tests PRIVATE eigen3 bsm)
+target_link_libraries(tests bsm autodiff::autodiff Eigen3::Eigen )
 
 #Benchmarks
-add_executable(benchmarks benchmarks/benchmarks.cpp crr.cpp crr.h lattice.h analytical.h greeks.h options.cpp options.h random.cpp random.h lsmc.cpp lsmc.h)
-target_include_directories(benchmarks PRIVATE eigen3)
-target_link_libraries(benchmarks autodiff::autodiff Eigen3::Eigen benchmark::benchmark)
+add_executable(benchmarks benchmarks/benchmarks.cpp random.cpp random.h bsm/bsm.h)
+target_include_directories(benchmarks PRIVATE eigen3 bsm)
+target_link_libraries(benchmarks bsm autodiff::autodiff Eigen3::Eigen benchmark::benchmark)
 
-install(TARGETS blackscholes DESTINATION bin)
+install(TARGETS bsm DESTINATION bin)
