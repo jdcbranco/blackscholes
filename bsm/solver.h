@@ -14,36 +14,20 @@
 namespace bsm {
 
     const double one_div_root_two = 1.0/sqrt(2.0);
+    const double one_div_root_two_pi = 1.0/sqrt(2.0*std::numbers::pi);
 
     template<typename T = double>
-    inline T phi(T const& x)
+    inline T cdf(T const& x)
     {
         return 0.5 * (1.0 + erf(x * one_div_root_two));
     }
 
-    struct pricing {
-        double S;
-        double K;
-        double sigma;
-        double tau;
-        double r;
-        double q;
-        //Constructors
-        pricing(instrument const& instrument, mkt_params<double> mp):
-                S{mp.S}, K{instrument.K}, sigma{mp.sigma},
-                tau{static_cast<double>(time_between(mp.t,instrument.maturity).count())},
-                r{mp.r}, q{mp.q} {}
-        pricing(forward const& instrument, mkt_params<double> mp):
-            S{mp.S}, K{instrument.K}, sigma{mp.sigma},
-            tau{static_cast<double>(time_between(mp.t,instrument.maturity).count())},
-            r{mp.r}, q{mp.q} {}
-        pricing(european const& instrument, mkt_params<double> mp):
-            S{mp.S}, K{instrument.K}, sigma{mp.sigma},
-            tau{static_cast<double>(time_between(mp.t,instrument.maturity).count())},
-            r{mp.r}, q{mp.q} {}
-        pricing(pricing const&) = default;
-        pricing(pricing &&) noexcept = default;
-        //Public methods
+    template<typename T = double>
+    inline T pdf(T const& x) {
+        return exp(-0.5*x*x)*one_div_root_two_pi;
+    }
+
+    struct method {
         virtual double price() = 0;
         virtual double delta() = 0;
         virtual double gamma() = 0;
@@ -51,6 +35,42 @@ namespace bsm {
         virtual double theta() = 0;
         virtual double rho() = 0;
         virtual double psi() = 0;
+    };
+
+    struct american_method: method {
+        virtual double exercise_boundary(double _tau) = 0;
+    };
+
+    template<typename T = double>
+    struct pricing {
+        T S;
+        T K;
+        T sigma;
+        T tau;
+        T r;
+        T q;
+        pricing(instrument const& instrument, mkt_params<double> mp):
+                S{mp.S}, K{instrument.K}, sigma{mp.sigma},
+                tau{static_cast<double>(time_between(mp.t,instrument.maturity).count())},
+                r{mp.r}, q{mp.q} {}
+        pricing(pricing const&) = default;
+        pricing(pricing &&) noexcept = default;
+        pricing<T>& clone(T S, T tau) {
+            pricing<T> copy{this};
+            copy.S = S;
+            copy.tau = tau;
+            return copy;
+        }
+    };
+
+    template<typename T>
+    using pricing_function = T(pricing<T> const&);
+
+    template<typename T>
+    using exercise_boundary_function = T(T const&, T const&);
+
+    struct exercise_boundary {
+        virtual double boundary(double tau) = 0;
     };
 
     class autodiff_off;
@@ -65,9 +85,9 @@ namespace bsm {
         inline analytical_solver(analytical_solver const&) = default;
         inline analytical_solver(analytical_solver &&) noexcept = default;
 
-        std::unique_ptr<pricing> operator()(forward& instrument);
-        std::unique_ptr<pricing> operator()(european_call& instrument);
-        std::unique_ptr<pricing> operator()(european_put& instrument);
+        std::unique_ptr<method> operator()(european_forward& instrument);
+        std::unique_ptr<method> operator()(european_call& instrument);
+        std::unique_ptr<method> operator()(european_put& instrument);
     };
 
     template<typename AD = autodiff_off>
@@ -79,11 +99,34 @@ namespace bsm {
         inline crr_solver(crr_solver const&) = default;
         inline crr_solver(crr_solver &&) noexcept = default;
 
-        std::unique_ptr<pricing> operator()(forward& instrument);
-        std::unique_ptr<pricing> operator()(european_call& instrument);
-        std::unique_ptr<pricing> operator()(european_put& instrument);
-        std::unique_ptr<pricing> operator()(american_call& instrument);
-        std::unique_ptr<pricing> operator()(american_put& instrument);
+        std::unique_ptr<method> operator()(european_forward& instrument);
+        std::unique_ptr<method> operator()(european_call& instrument);
+        std::unique_ptr<method> operator()(european_put& instrument);
+        std::unique_ptr<method> operator()(american_call& instrument);
+        std::unique_ptr<method> operator()(american_put& instrument);
+    };
+
+    template<typename AD = autodiff_off>
+    struct qdplus_solver {
+        mkt_params<double> mktParams;
+        inline qdplus_solver(mkt_params<double> const& mktParams): mktParams{mktParams} {}
+        inline qdplus_solver(qdplus_solver const&) = default;
+        inline qdplus_solver(qdplus_solver &&) noexcept = default;
+
+        std::unique_ptr<american_method> operator()(american_put& instrument);
+
+    };
+
+    template<typename AD = autodiff_off>
+    struct fastamerican_solver {
+        mkt_params<double> mktParams;
+        //method parameters
+        const int l, m, n;
+    public:
+        inline fastamerican_solver(mkt_params<double> const& mktParams, int l, int m, int n): mktParams{mktParams}, l{l}, m{m}, n{n} {}
+        inline fastamerican_solver(fastamerican_solver const&) = default;
+        inline fastamerican_solver(fastamerican_solver &&) noexcept = default;
+
     };
 
 }

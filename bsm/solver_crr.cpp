@@ -6,7 +6,7 @@ using namespace bsm::internals;
 
 namespace bsm {
 
-    struct crr_pricing_method: pricing {
+    struct crr_pricing_method: pricing<double>, method {
         std::function<calc_payoff_type<double>> calc_payoff;
         generic_crr_pricing_method<double> crr;
         const instrument instrument_;
@@ -21,12 +21,6 @@ namespace bsm {
 
         crr_pricing_method(american const& instrument, mkt_params<double> mp, int steps):
                 pricing{instrument,mp}, crr{instrument, mp, steps}, calc_payoff{[&instrument](double price) { return instrument.payoff(price); }}, steps{steps}, instrument_{instrument}, early_exercise{true}
-        {
-            crr.solve(calc_payoff, early_exercise);
-        }
-
-        crr_pricing_method(forward const& instrument, mkt_params<double> mp, int steps):
-        pricing{instrument,mp}, crr{instrument, mp, steps}, calc_payoff{[&instrument](double price) { return instrument.payoff(price); }}, steps{steps}, instrument_{instrument}, early_exercise{false}
         {
             crr.solve(calc_payoff, early_exercise);
         }
@@ -74,31 +68,31 @@ namespace bsm {
     };
 
     template<>
-    std::unique_ptr<pricing> crr_solver<autodiff_off>::operator()(forward& instrument) {
+    std::unique_ptr<method> crr_solver<autodiff_off>::operator()(european_forward& instrument) {
         crr_pricing_method gp{instrument, mktParams, steps};
         return std::make_unique<crr_pricing_method>(gp);
     }
 
     template<>
-    std::unique_ptr<pricing> crr_solver<autodiff_off>::operator()(european_call& instrument) {
+    std::unique_ptr<method> crr_solver<autodiff_off>::operator()(european_call& instrument) {
         crr_pricing_method gp{instrument, mktParams, steps };
         return std::make_unique<crr_pricing_method>(gp);
     }
 
     template<>
-    std::unique_ptr<pricing> crr_solver<autodiff_off>::operator()(european_put& instrument) {
+    std::unique_ptr<method> crr_solver<autodiff_off>::operator()(european_put& instrument) {
         crr_pricing_method gp{instrument, mktParams, steps };
         return std::make_unique<crr_pricing_method>(gp);
     }
 
     template<>
-    std::unique_ptr<pricing> crr_solver<autodiff_off>::operator()(american_call& instrument) {
+    std::unique_ptr<method> crr_solver<autodiff_off>::operator()(american_call& instrument) {
         crr_pricing_method gp{instrument, mktParams, steps };
         return std::make_unique<crr_pricing_method>(gp);
     }
 
     template<>
-    std::unique_ptr<pricing> crr_solver<autodiff_off>::operator()(american_put& instrument) {
+    std::unique_ptr<method> crr_solver<autodiff_off>::operator()(american_put& instrument) {
         crr_pricing_method gp{instrument, mktParams, steps };
         return std::make_unique<crr_pricing_method>(gp);
     }

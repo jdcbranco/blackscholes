@@ -15,7 +15,7 @@ TEST_CASE("Forward") {
     auto now = system_clock::now();
     auto oneYearFromNow = now + 1.0_years;
 
-    forward fwd{100.0, oneYearFromNow};
+    european_forward fwd{100.0, oneYearFromNow};
     CHECK(fwd.K==Approx(100.0));
     CHECK(fwd.maturity==oneYearFromNow);
 

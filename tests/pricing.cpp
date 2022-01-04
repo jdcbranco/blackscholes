@@ -20,7 +20,7 @@ TEST_CASE("Forward pricing") {
     auto r = 0.01;
     auto q = 0.0;
     mkt_params mktParams{S, sigma, t, r, q};
-    forward fwd{K, t + 1.0_years};
+    european_forward fwd{K, t + 1.0_years};
     analytical_solver solve{mktParams};
 
     auto fwdPricing = solve(fwd);
@@ -39,7 +39,7 @@ TEST_CASE("Forward pricing using Autodiff Dual") {
     auto r = 0.01;
     auto q = 0.0;
     mkt_params mktParams{S, sigma, t, r, q};
-    forward fwd{K, t + 0.75_years};
+    european_forward fwd{K, t + 0.75_years};
     analytical_solver<autodiff_dual> solve{mktParams};
 
     auto fwdPricing = solve(fwd);

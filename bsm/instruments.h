@@ -32,18 +32,18 @@ namespace bsm {
         { instrument.closed_form_price(params) } -> std::convertible_to<T>;
     };
 
-    struct forward: instrument {
-        inline forward(double const& strike, datetime const& maturity): instrument{strike,maturity} {} //K{strike}, maturity{maturity} {}
-        forward(forward const& other) = default;
-        forward(forward && other) noexcept = default;
-        inline double payoff(double price_at_maurity) const {
-            return price_at_maurity - K;
-        }
+    struct european: instrument {
+        inline european(double strike, datetime const& maturity) : instrument{strike, maturity} {}
+        virtual double payoff(double price_at_maturity) const = 0;
     };
 
-    struct european: instrument {
-        inline european(double strike, datetime const& maturity) : instrument{strike, maturity} {} //K{strike}, maturity{maturity} {}
-        virtual double payoff(double price_at_maturity) const = 0;
+    struct european_forward: european {
+        inline european_forward(double const& strike, datetime const& maturity): european{strike, maturity} {}
+        inline european_forward(european_forward const& other) = default;
+        inline european_forward(european_forward && other) noexcept = default;
+        inline double payoff(double price_at_maurity) const override {
+            return price_at_maurity - K;
+        }
     };
 
     struct european_call: european {
