@@ -41,6 +41,27 @@ namespace bsm {
         virtual double exercise_boundary(double _tau) = 0;
     };
 
+    //I've been thinking in having a different type for each parameter
+//    template<typename TS, typename TK, typename Tsigma, typename Ttau, typename Tr, typename Tq>
+//    struct parameters {
+//        TS S;
+//        TK K;
+//        Tsigma sigma;
+//        Ttau tau;
+//        Tr r;
+//        Tq q;
+//        parameters(instrument const& instrument, mkt_params<double> mp):
+//        S{mp.S}, K{instrument.K}, sigma{mp.sigma},
+//        tau{static_cast<double>(time_between(mp.t,instrument.maturity).count())},
+//        r{mp.r}, q{mp.q} {}
+//        parameters(parameters const&) = default;
+//        parameters(parameters &&) noexcept = default;
+//        std::unique_ptr<parameters<TS,TK,Tsigma,Ttau,Tr,Tq>> clone() {
+//            parameters<TS,TK,Tsigma,Ttau,Tr,Tq> copy{*this};
+//            return std::make_unique<parameters<TS,TK,Tsigma,Ttau,Tr,Tq>>(copy);
+//        }
+//    };
+
     template<typename T = double>
     struct pricing {
         T S;
@@ -55,19 +76,19 @@ namespace bsm {
                 r{mp.r}, q{mp.q} {}
         pricing(pricing const&) = default;
         pricing(pricing &&) noexcept = default;
-        pricing<T>& clone(T S, T tau) {
-            pricing<T> copy{this};
+        std::unique_ptr<pricing<T>> clone(T S, T tau) {
+            pricing<T> copy{*this};
             copy.S = S;
             copy.tau = tau;
-            return copy;
+            return std::make_unique<pricing<T>>(copy);
         }
     };
 
     template<typename T>
     using pricing_function = T(pricing<T> const&);
 
-    template<typename T>
-    using exercise_boundary_function = T(T const&, T const&);
+//    template<typename T>
+//    using exercise_boundary_function = T(T const&, T const&);
 
     struct exercise_boundary {
         virtual double boundary(double tau) = 0;

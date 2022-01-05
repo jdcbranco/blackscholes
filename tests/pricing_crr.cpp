@@ -46,7 +46,6 @@ TEST_CASE("American Put Pricing using Binomial Tree (CRR)") {
     mkt_params mktParams{S, sigma, t, r, q};
     american_put americanPut{K, t + 0.5_years};
     crr_solver solve{mktParams,2000};
-    analytical_solver<autodiff_var> solve_analytically{mktParams};
 
     auto crrPricing = solve(americanPut);
 

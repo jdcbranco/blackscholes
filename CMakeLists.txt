@@ -21,7 +21,7 @@ target_include_directories(main PRIVATE bsm)
 target_link_libraries(main bsm)
 
 #Unit tests
-add_executable(tests tests/common.cpp random.cpp random.h bsm/bsm.h tests/instruments.cpp tests/pricing.cpp tests/chrono.cpp tests/pricing_crr.cpp)
+add_executable(tests tests/common.cpp random.cpp random.h bsm/bsm.h tests/instruments.cpp tests/pricing.cpp tests/chrono.cpp tests/pricing_crr.cpp tests/pricing_qdplus.cpp)
 target_include_directories(tests PRIVATE eigen3 bsm)
 target_link_libraries(tests bsm autodiff::autodiff Eigen3::Eigen )
 

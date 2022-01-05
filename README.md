@@ -11,6 +11,12 @@ Focus has been on hiding implementation layer complexities while providing expre
 
 * Implement methods that are actually more interesting, not the closed formulas for european options.
 * Code refactoring, optimization, etc.
+* More benchmarks
+
+### NOTES
+
+* Started implementing the QD+ approximation method for American Options, but there is a lot of work to be done. So far it works for american puts, and I've written two tests based on the data of the original paper. There is another test which shows it coincides with the binomial tree result too.
+* Also implemented a basic binomial tree method for easy of comparison (using Cox-Ross-Rubinstein method). But I need to improve it to show the exercise boundary and consolidate the interface used for american option pricing.
 
 ## Example 
 

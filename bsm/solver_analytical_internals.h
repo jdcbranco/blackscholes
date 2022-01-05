@@ -31,7 +31,7 @@ namespace bsm {
 
         template<typename T>
         T calculate_d2(pricing<T> const& p) {
-        return (log(p.S / p.K) + (p.r - p.q + p.sigma*p.sigma / 2) * p.tau) / (p.sigma * sqrt(p.tau));
+            return (log(p.S / p.K) + (p.r - p.q - p.sigma*p.sigma / 2) * p.tau) / (p.sigma * sqrt(p.tau));
         }
     }
 }
