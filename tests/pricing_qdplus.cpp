@@ -29,12 +29,12 @@ TEST_CASE("American Call Pricing using QD+ approximation method matches the Bino
     auto crr_method = solve_crr(americanCall);
 
     CHECK(qdplus_method->price() == Approx(crr_method->price()).margin(0.005));
-    CHECK(qdplus_method->delta() == Approx(crr_method->delta()).margin(0.00005));
+    CHECK(qdplus_method->delta() == Approx(crr_method->delta()).margin(0.0005));
     CHECK(qdplus_method->gamma() == Approx(crr_method->gamma()).margin(0.00003));
-    CHECK(qdplus_method->theta() == Approx(crr_method->theta()).margin(0.005));
+    CHECK(qdplus_method->theta() == Approx(crr_method->theta()).epsilon(0.005));
     CHECK(qdplus_method->vega() == Approx(crr_method->vega()).epsilon(0.005));
     CHECK(qdplus_method->rho() == Approx(crr_method->rho()).epsilon(0.005));
-    CHECK(qdplus_method->psi() == Approx(crr_method->psi()).epsilon(0.005));
+    CHECK(qdplus_method->psi() == Approx(crr_method->psi()).epsilon(0.035));
 }
 
 //Note that QD+ diverges a lot when diviends are higher
@@ -55,9 +55,9 @@ TEST_CASE("American Call Pricing using QD+ approximation method matches the Bino
 
     //This number to which we compare to is taken from Binomial method (CRR)
     CHECK(qdplus_method->price() == Approx(crr_method->price()).margin(0.005));
-    CHECK(qdplus_method->delta() == Approx(crr_method->delta()).margin(0.00005));
+    CHECK(qdplus_method->delta() == Approx(crr_method->delta()).margin(0.0005));
     CHECK(qdplus_method->gamma() == Approx(crr_method->gamma()).margin(0.00003));
-    CHECK(qdplus_method->theta() == Approx(crr_method->theta()).margin(0.005));
+    CHECK(qdplus_method->theta() == Approx(crr_method->theta()).epsilon(0.005));
     CHECK(qdplus_method->vega() == Approx(crr_method->vega()).epsilon(0.005));
     CHECK(qdplus_method->rho() == Approx(crr_method->rho()).epsilon(0.005));
     CHECK(qdplus_method->psi() == Approx(crr_method->psi()).epsilon(0.005));
