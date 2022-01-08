@@ -53,19 +53,18 @@ namespace bsm {
         }
 
         double gamma() override {
-            auto const d1 = (log(S / K) + (r - q + sigma * sigma / 2) * tau) / (sigma * sqrt(tau));
-            return exp(-q*tau)*exp(-0.5*d1*d1)/(S*sigma*sqrt(tau)*sqrt(2.0*std::numbers::pi));
+            return calculate_gamma<double>(*this);
         }
 
-        //The following are not implemented yet
         double vega() override {
-            return 0;
+            return calculate_vega<double>(*this);
         }
 
         double theta() override {
-            return 0;
+            return calculate_theta<double>(*this,1.0);
         }
 
+        //The following are not implemented yet
         double rho() override {
             return 0;
         }
@@ -83,24 +82,23 @@ namespace bsm {
         }
 
         double delta() override {
-            auto const d1 = (log(S / K) + (r - q + sigma * sigma / 2) * tau) / (sigma * sqrt(tau));
-            return -exp(-q * tau) * cdf(-d1);
+            auto const d1 = calculate_d1<double>(*this);
+            return -exp(-q*tau)*cdf(-d1);
         }
 
         double gamma() override {
-            auto const d1 = (log(S / K) + (r - q + sigma * sigma / 2) * tau) / (sigma * sqrt(tau));
-            return exp(-q*tau)*exp(-0.5*d1*d1)/(S*sigma*sqrt(tau)*sqrt(2.0*std::numbers::pi));
+            return calculate_gamma<double>(*this);
         }
 
-        //The following are not implemented yet
         double vega() override {
-            return 0;
+            return calculate_vega<double>(*this);
         }
 
         double theta() override {
-            return 0;
+            return calculate_theta<double>(*this,-1.0);
         }
 
+        //The following are not implemented yet
         double rho() override {
             return 0;
         }

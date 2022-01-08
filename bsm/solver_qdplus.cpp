@@ -11,6 +11,9 @@ namespace bsm {
     template<typename T>
     using exercise_boundary_function = T(T const&);
 
+    //Experimenting wiht long double duals
+    using ldual = HigherOrderDual<3, long double>;
+
     //This is still a working in progress. The code below needs a lot of work, but has been debugged and I know it works.
     //Paper: Analytical Approximations for the Critical Stock Prices of American Options: A Performance Comparison
     //by Minqiang Li, Li (2009)
@@ -19,143 +22,192 @@ namespace bsm {
     template<typename T>
     struct qdplus_method_core: pricing<T> {
         T M, N;
-        qdplus_method_core(american const& instrument, mkt_params<double> mp): pricing<T>{instrument,mp},
-        M{2.0*this->r/(this->sigma*this->sigma)},
-        N{2.0*(this->r-this->q)/(this->sigma*this->sigma)}
+
+        qdplus_method_core(pricing<T> const& p, bool call = false):
+                pricing<T>{p.S,p.K,p.sigma,p.tau,p.r,p.q},
+                M{2.0L*this->r/(this->sigma*this->sigma)},
+                N{2.0L*(this->r-this->q)/(this->sigma*this->sigma)}
         {}
 
-        T calc_price() {
-            auto Sb = calculate_exercise_boundary(this->tau);
-            auto S = this->S;
-            auto K = this->K;
-            auto tau = this->tau;
-            auto r = this->r;
+        bool never_optimal_exercise() {
+            return (this->r == 0 and (this->q >= this->r));
+        }
+
+        /**
+         * Calculates price based on exercise boundary
+         * @param Sb Exercise boundary
+         * @return
+         */
+        T calc_price(T const& Sb) {
+
+            auto& S = this->S;
+            auto& K = this->K;
+            auto& tau = this->tau;
+            auto& r = this->r;
 
             if(S <= Sb) {
                 return K - S;
             } else {
                 auto eput = calculate_european_put<T>(*this);
-                auto eput_b = calculate_european_put<T>(*(this->clone(Sb,tau)));
-                T h = 1.0-exp(-r*tau);
-                auto qd = calc_qqd(M, N, h); //q_QD
-                auto qdd = calc_qqd_deriv(M, N, h); //q_QD'(h)
-                auto b = calc_b(M, N, h, qd, qdd);
-                auto logSSb = log(S/Sb);
-                auto c0 = calc_c0(M, N, h, qd, qdd, Sb, tau, eput_b);
-                auto c = c0;
-                return eput +
-                        ((K-Sb-eput_b)/(1.0-b*(logSSb*logSSb)-c*logSSb))*pow(S/Sb,qd);
+                if(never_optimal_exercise())
+                    return eput;
+                else {
+                    auto eput_b = calculate_european_put<T>(*(this->clone(val(Sb), tau)));
+                    T h = 1.0L - exp(-r * tau);
+                    auto qd = calc_qqd(M, N, h); //q_QD
+                    auto qdd = calc_qqd_deriv(M, N, h); //q_QD'(h)
+                    auto b = calc_b(M, N, h, qd, qdd);
+                    auto logSSb = log(S / Sb);
+                    auto c0 = calc_c0(M, N, h, qd, qdd, Sb, tau, eput_b);
+                    auto c = c0;
+                    return eput +
+                           ((K - Sb - eput_b) / (1.0 - b * (logSSb * logSSb) - c * logSSb)) * pow(S / Sb, qd);
+                }
             }
         }
 
-        std::function<exercise_boundary_function<T>> get_exercise_boundary_function(T tau) {
-            auto r = pricing<T>::r;
-            //auto tau = pricing<T>::tau;
-            T h = 1.0-exp(-r*tau);
+        std::function<exercise_boundary_function<T>> get_exercise_boundary_function(T const& tau) {
+            auto& r = pricing<T>::r;
+            auto h = 1.0L-exp(-r*tau);
             auto qd = calc_qqd(M, N, h); //q_QD
             auto qdd = calc_qqd_deriv(M, N, h); //q_QD'(h)
             return [this,tau,h,qd,qdd](T const& Sb) {
-                auto q = this->q;
-                auto K = this->K;
+                auto& q = this->q;
+                auto& K = this->K;
                 auto p = this->clone(Sb,tau);
                 auto d1 = calculate_d1<T>(*p);
                 auto eput_b = calculate_european_put<T>(*p);
                 auto c0 = calc_c0(M, N, h, qd, qdd, Sb, tau, eput_b);
                 auto c = c0;
-                return (1.0-exp(-q*tau)*cdf<T>(-d1))*Sb + (qd + c)*(K - Sb - eput_b);
+                return abs((1.0-exp(-q*tau)*cdf<T>(-d1))*Sb + (qd + c)*(K - Sb - eput_b));
             };
         }
 
-        T calculate_exercise_boundary(T tau) {
+        T calculate_exercise_boundary(T const& tau) {
+
+            if(tau==0 || never_optimal_exercise()) {
+                return 0.0;
+            }
+
             T Sb = this->K;
             auto equation = get_exercise_boundary_function(tau);
 
             for(int i = 0; i<100; i++) {
-                auto [u0, ux] = derivatives(equation, wrt(Sb), at(Sb));
+                auto [u0, ux, uxx, uxxx] = derivatives(equation, wrt(Sb), at(Sb));
                 if (u0 < 1e-9) {
+                    std::cout << "u0 = " << u0 << ", ux = " << ux << std::endl;
                     break;
                 }
-                Sb -= u0/ux;//val(u0/ux);
+                Sb -= u0/ux;
             }
+            std::cout << "Sb = " << Sb << ", K = " << this->K << std::endl;
             return Sb;
         }
 
         //qdd means q_QD'(h)
-        T calc_b(T M, T N, T h, T qd, T qdd) {
+        T calc_b(T const& M, T const& N, T const& h, T const& qd, T const& qdd) {
             return 0.5*(1.0-h)*M*qdd/(2.0*qd+N-1.0);
         }
 
-        T calc_qqd(T M, T N, T h) {
-            return -0.5*(N-1+sqrt((N-1.0)*(N-1.0) + 4.0*M/h));
+        T calc_qqd(T const& M, T const& N, T const& h) {
+            return -0.5L*(N-1.0L+sqrt((N-1.0L)*(N-1.0L) + 4.0L*M/h));
         }
 
-        T calc_qqd_deriv(T M, T N, T h) {
-            return M/(h*h*sqrt((N-1.0)*(N-1.0)+ 4*M/h));
+        T calc_qqd_deriv(T const& M, T const& N, T const& h) {
+            return M/(h*h*sqrt((N-1.0L)*(N-1.0L)+ 4.0L*M/h));
         }
 
-        T calc_c0(T M, T N, T h, T qd, T qdd, T Sb, T tau, T eput) {
-            auto r = this->r;
-            auto K = this->K;
-            return -((1.0-h)*M/(2.0*qd+N-1.0))*(1.0/h - put_theta(Sb,tau)*exp(r*tau)/(r*(K-Sb-eput)) + qdd/(2.0*qd+N-1.0) );
-        }
-
-        T put_theta(T S, T tau) {
-            auto p = this->clone(S,tau);
-            auto& K = this->K;
-            auto& sigma = this->sigma;
+        T calc_c0(T const& M, T const& N, T const& h, T const& qd, T const& qdd, T const& Sb, T const& tau, T const& eput_b) {
             auto& r = this->r;
-            auto& q = this->q;
-            auto d1 = calculate_d1<T>(*p);
-            auto d2 = calculate_d2<T>(*p);
-            return r * K * exp(-r*tau) * cdf<T>(-d2)
-            - q * S * exp(-q * tau) * cdf<T>(-d1)
-            - 0.5 * sigma * S * exp(-q * tau) * pdf<T>(d1) / sqrt(tau);
+            auto& K = this->K;
+            return -((1.0-h)*M/(2.0*qd+N-1.0))*(1.0/h - put_theta(Sb,tau)*exp(r*tau)/(r*(K - Sb - eput_b)) + qdd / (2.0 * qd + N - 1.0) );
+        }
+
+        T put_theta(T const& S, T const& tau) {
+            auto p = this->clone(S,tau);
+            return calculate_theta<T>(*p,-1.0);
         }
 
     };
 
-    struct qdplus_method: pricing<double>, american_method {
-        qdplus_method_core<dual> core;
-        qdplus_method(american const& instrument, mkt_params<double> mp): pricing{instrument,mp}, core{instrument,mp} {
+    struct qdplus_method: american_method {
+        protected:
+        ldual price_;
+        ldual delta_;
+        ldual gamma_;
+        ldual vega_;
+        ldual theta_;
+        ldual rho_;
+        ldual psi_;
+        public:
+            //qdplus_method_core<dual> core;
+            pricing<ldual> dp;
+            qdplus_method(american const& instrument, mkt_params<double> mp, bool call = false): dp{instrument,mp} { //core{instrument,mp} {
 
-        }
+                //All greeks are calculated wrt to this exercise boundary.
+                long double Sb = exercise_boundary(val(dp.tau));
 
-        double price() override {
-            return val(core.calc_price());
-        }
+                auto calc = [Sb](pricing<ldual> const& p) {
+                    qdplus_method_core<ldual> core_{p};
+                    return core_.calc_price(Sb);
+                };
 
-        double delta() override {
-            return NAN;
-        }
+                auto [_price, _delta, _gamma, _] = call ? derivatives(calc, wrt(dp.K, dp.K), at(dp)) : derivatives(calc, wrt(dp.S, dp.S), at(dp));
+                price_ = _price;
+                delta_ = _delta;
+                gamma_ = _gamma;
+                vega_ = derivative(calc, wrt(dp.sigma), at(dp));
+                theta_ = derivative(calc, wrt(dp.tau), at(dp));
+                rho_ = derivative(calc, wrt(call? dp.q: dp.r), at(dp));
+                psi_ = derivative(calc, wrt(call? dp.r: dp.q), at(dp));
+            }
 
-        double gamma() override {
-            return NAN;
-        }
+            double price() override {
+                return val(price_);
+            }
 
-        double vega() override {
-            return NAN;
-        }
+            double delta() override {
+                return val(delta_);
+            }
 
-        double theta() override {
-            return NAN;
-        }
+            double gamma() override {
+                return val(gamma_);
+            }
 
-        double rho() override {
-            return NAN;
-        }
+            double vega() override {
+                return val(vega_);
+            }
 
-        double psi() override {
-            return NAN;
-        }
+            double theta() override {
+                return -val(theta_);
+            }
 
-        double exercise_boundary(double _tau) override {
-            return val(core.calculate_exercise_boundary(_tau));
-        }
+            double rho() override {
+                return val(rho_);
+            }
+
+            double psi() override {
+                return val(psi_);
+            }
+
+            long double exercise_boundary(long double _tau) override {
+                qdplus_method_core<ldual> core_{dp};
+                return val(core_.calculate_exercise_boundary(_tau));
+            }
     };
 
     template<>
     std::unique_ptr<american_method> qdplus_solver<autodiff_off>::operator()(american_put& instrument) {
         qdplus_method gp{instrument, mktParams};
+        return std::make_unique<qdplus_method>(gp);
+    }
+
+    template<>
+    std::unique_ptr<american_method> qdplus_solver<autodiff_off>::operator()(american_call& instrument) {
+        //Following based on call-put symmetry
+        american_put symmetric{mktParams.S,instrument.maturity};
+        mkt_params<long double> symmetricParams{instrument.K,mktParams.sigma, mktParams.t, mktParams.q, mktParams.r};
+        qdplus_method gp{symmetric, symmetricParams, true};
         return std::make_unique<qdplus_method>(gp);
     }
 

@@ -1,22 +1,36 @@
 #  BSM
 
-This is a personal project created to learn c++ 20 by implementing option pricing and greeks calculation under the Black Scholes Merton model. You may find bugs, convoluted design and some horrible copy-paste. This code is an experimentation, do not expect any good coding practices or idiomatic c++. I've thrown away 2 other iterations of this same codebase and it might happen again. 
+This is a personal project created to learn c++ 20 by implementing option pricing and 
+greeks calculation under the Black Scholes Merton model. You may find bugs, convoluted 
+design and some horrible copy-paste. This code is an experimentation, do not expect any 
+good coding practices or idiomatic c++. I've thrown away 2 other iterations of this same 
+codebase and it might happen again. 
 
-See the CMakeLists.txt for the required dependencies. I run Win11 and used GCC 11.2 on WSL 2.0, and everything was easy to install.
+See the CMakeLists.txt for the required dependencies. I run Win11 and used GCC 11.2 on WSL
+2.0, and everything was easy to install.
 
-Designed and implemented using TDD/Catch2 while also performing micro benchmark using Google Benchmark. The code has not been optimized yet. 
-Focus has been on hiding implementation layer complexities while providing expressiveness to library users. It uses the nice Autodiff library (https://autodiff.github.io).
+Designed and implemented using TDD/Catch2 while also performing micro benchmark using 
+Google Benchmark. The code has not been optimized yet. 
+Focus has been on hiding implementation layer complexities while providing expressiveness 
+to library users. It uses the nice Autodiff library (https://autodiff.github.io).
 
 ### TODO
 
-* Implement methods that are actually more interesting, not the closed formulas for european options.
+* Implement methods that are actually more interesting, not the closed formulas for 
+european options.
 * Code refactoring, optimization, etc.
 * More benchmarks
 
 ### NOTES
 
-* Started implementing the QD+ approximation method for American Options, but there is a lot of work to be done. So far it works for american puts, and I've written two tests based on the data of the original paper. There is another test which shows it coincides with the binomial tree result too.
-* Also implemented a basic binomial tree method for easy of comparison (using Cox-Ross-Rubinstein method). But I need to improve it to show the exercise boundary and consolidate the interface used for american option pricing.
+* Implemented a basic binomial tree method for easy of comparison (using
+Cox-Ross-Rubinstein method). But I need to improve it to show the exercise boundary and
+consolidate the interface used for american option pricing.
+* Started implementing the QD+ approximation method for American Options, but there is 
+a lot of work to be done. Made it to work for american calls. I've written two tests 
+based on the data of the original paper. There are 3 other test which shows it coincides
+with the binomial tree result too (up to an extent). QD+ diverges more as r and q increases.
+
 
 ## Example 
 

@@ -12,9 +12,9 @@ namespace bsm {
     using namespace bsm::chrono;
 
     struct instrument {
-        const double K;
+        const long double K;
         const datetime maturity;
-        instrument(double const& strike, datetime const& maturity): K{strike}, maturity{maturity} {}
+        instrument(long double const& strike, datetime const& maturity): K{strike}, maturity{maturity} {}
     };
 
     template<typename I>
@@ -33,53 +33,53 @@ namespace bsm {
     };
 
     struct european: instrument {
-        inline european(double strike, datetime const& maturity) : instrument{strike, maturity} {}
-        virtual double payoff(double price_at_maturity) const = 0;
+        inline european(long double strike, datetime const& maturity) : instrument{strike, maturity} {}
+        virtual long double payoff(long double price_at_maturity) const = 0;
     };
 
     struct european_forward: european {
-        inline european_forward(double const& strike, datetime const& maturity): european{strike, maturity} {}
+        inline european_forward(long double const& strike, datetime const& maturity): european{strike, maturity} {}
         inline european_forward(european_forward const& other) = default;
         inline european_forward(european_forward && other) noexcept = default;
-        inline double payoff(double price_at_maurity) const override {
+        inline long double payoff(long double price_at_maurity) const override {
             return price_at_maurity - K;
         }
     };
 
     struct european_call: european {
-        inline european_call(double strike, datetime const& maturity): european{strike, maturity} {}
-        inline european_call(double strike, year_month_day const& maturity): european{strike, maturity} {}
-        inline double payoff(double price_at_maturity) const override {
-            return std::max(price_at_maturity-K,0.0);
+        inline european_call(long double strike, datetime const& maturity): european{strike, maturity} {}
+        inline european_call(long double strike, year_month_day const& maturity): european{strike, maturity} {}
+        inline long double payoff(long double price_at_maturity) const override {
+            return std::max(price_at_maturity-K,0.0L);
         }
     };
 
     struct european_put: european {
-        inline european_put(double strike, datetime const& maturity): european{strike, maturity} {}
-        inline european_put(double strike, year_month_day const& maturity): european{strike, maturity} {}
-        inline double payoff(double price_at_maturity) const override {
-            return std::max(K-price_at_maturity,0.0);
+        inline european_put(long double strike, datetime const& maturity): european{strike, maturity} {}
+        inline european_put(long double strike, year_month_day const& maturity): european{strike, maturity} {}
+        inline long double payoff(long double price_at_maturity) const override {
+            return std::max(K-price_at_maturity,0.0L);
         }
     };
 
     struct american: instrument {
-        inline american(double strike, datetime const& maturity): instrument{strike,maturity} {} // K{strike}, maturity{maturity} {}
-        virtual double payoff(double price) const = 0;
+        inline american(long double strike, datetime const& maturity): instrument{strike,maturity} {} // K{strike}, maturity{maturity} {}
+        virtual long double payoff(long double price) const = 0;
     };
 
     struct american_call: american {
-        american_call(double strike, datetime const& maturity): american{strike, maturity} {}
-        american_call(double strike, year_month_day const& maturity): american{strike, maturity} {}
-        inline double payoff(double price) const override {
-            return std::max(price - K, 0.0);
+        american_call(long double strike, datetime const& maturity): american{strike, maturity} {}
+        american_call(long double strike, year_month_day const& maturity): american{strike, maturity} {}
+        inline long double payoff(long double price) const override {
+            return std::max(price - K, 0.0L);
         }
     };
 
     struct american_put: american {
-        american_put(double strike, datetime const& maturity): american{strike, maturity} {}
-        american_put(double strike, year_month_day const& maturity): american{strike, maturity} {}
-        inline double payoff(double price) const override {
-            return std::max(K - price, 0.0);
+        american_put(long double strike, datetime const& maturity): american{strike, maturity} {}
+        american_put(long double strike, year_month_day const& maturity): american{strike, maturity} {}
+        inline long double payoff(long double price) const override {
+            return std::max(K - price, 0.0L);
         }
     };
 

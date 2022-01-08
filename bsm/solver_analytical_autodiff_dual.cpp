@@ -41,7 +41,7 @@ namespace bsm {
         }
 
         double theta() override {
-            return val(theta_);
+            return -val(theta_);
         }
 
         double rho() override {

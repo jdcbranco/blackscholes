@@ -148,8 +148,14 @@ TEST_CASE("European Call Pricing using different methods must agree") {
 
     //Check Gamma
     CHECK(callPricing_dual->gamma()==Approx(callPricing_var->gamma()));
+    CHECK(callPricing->gamma()==Approx(callPricing_var->gamma()));
 
     //Check Vega
     CHECK(callPricing_dual->vega()==Approx(callPricing_var->vega()));
+    CHECK(callPricing->vega()==Approx(callPricing_var->vega()));
+
+    //Check Theta
+    CHECK(callPricing_dual->theta()==Approx(callPricing_var->theta()));
+    CHECK(callPricing->theta()==Approx(callPricing_var->theta()));
 }
 

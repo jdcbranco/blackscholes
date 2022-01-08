@@ -38,29 +38,8 @@ namespace bsm {
     };
 
     struct american_method: method {
-        virtual double exercise_boundary(double _tau) = 0;
+        virtual long double exercise_boundary(long double _tau) = 0;
     };
-
-    //I've been thinking in having a different type for each parameter
-//    template<typename TS, typename TK, typename Tsigma, typename Ttau, typename Tr, typename Tq>
-//    struct parameters {
-//        TS S;
-//        TK K;
-//        Tsigma sigma;
-//        Ttau tau;
-//        Tr r;
-//        Tq q;
-//        parameters(instrument const& instrument, mkt_params<double> mp):
-//        S{mp.S}, K{instrument.K}, sigma{mp.sigma},
-//        tau{static_cast<double>(time_between(mp.t,instrument.maturity).count())},
-//        r{mp.r}, q{mp.q} {}
-//        parameters(parameters const&) = default;
-//        parameters(parameters &&) noexcept = default;
-//        std::unique_ptr<parameters<TS,TK,Tsigma,Ttau,Tr,Tq>> clone() {
-//            parameters<TS,TK,Tsigma,Ttau,Tr,Tq> copy{*this};
-//            return std::make_unique<parameters<TS,TK,Tsigma,Ttau,Tr,Tq>>(copy);
-//        }
-//    };
 
     template<typename T = double>
     struct pricing {
@@ -70,13 +49,17 @@ namespace bsm {
         T tau;
         T r;
         T q;
-        pricing(instrument const& instrument, mkt_params<double> mp):
+        pricing(instrument const& instrument, mkt_params<double> const& mp):
                 S{mp.S}, K{instrument.K}, sigma{mp.sigma},
                 tau{static_cast<double>(time_between(mp.t,instrument.maturity).count())},
                 r{mp.r}, q{mp.q} {}
+        pricing(T const& S, T const& K, T const& sigma, T const& tau, T const& r, T const& q):
+                S{S}, K{K}, sigma{sigma},
+                tau{tau},
+                r{r}, q{q} {}
         pricing(pricing const&) = default;
         pricing(pricing &&) noexcept = default;
-        std::unique_ptr<pricing<T>> clone(T S, T tau) {
+        std::unique_ptr<pricing<T>> clone(T const& S, T const& tau) {
             pricing<T> copy{*this};
             copy.S = S;
             copy.tau = tau;
@@ -89,10 +72,6 @@ namespace bsm {
 
 //    template<typename T>
 //    using exercise_boundary_function = T(T const&, T const&);
-
-    struct exercise_boundary {
-        virtual double boundary(double tau) = 0;
-    };
 
     class autodiff_off;
     class autodiff_dual;
@@ -117,6 +96,7 @@ namespace bsm {
         const int steps;
     public:
         inline crr_solver(mkt_params<double> const& mktParams, int steps): mktParams{mktParams}, steps{steps} {}
+        inline crr_solver(mkt_params<long double> const& mktParams, int steps): mktParams{mktParams}, steps{steps} {}
         inline crr_solver(crr_solver const&) = default;
         inline crr_solver(crr_solver &&) noexcept = default;
 
@@ -129,12 +109,13 @@ namespace bsm {
 
     template<typename AD = autodiff_off>
     struct qdplus_solver {
-        mkt_params<double> mktParams;
-        inline qdplus_solver(mkt_params<double> const& mktParams): mktParams{mktParams} {}
+        mkt_params<long double> mktParams;
+        inline qdplus_solver(mkt_params<long double> const& mktParams): mktParams{mktParams} {}
         inline qdplus_solver(qdplus_solver const&) = default;
         inline qdplus_solver(qdplus_solver &&) noexcept = default;
 
         std::unique_ptr<american_method> operator()(american_put& instrument);
+        std::unique_ptr<american_method> operator()(american_call& instrument);
 
     };
 

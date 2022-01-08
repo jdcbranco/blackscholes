@@ -26,6 +26,8 @@ namespace bsm {
         {
         }
 
+        mkt_params(mkt_params<long double> const& mp): mkt_params{mp.S, mp.sigma, mp.t, mp.r, mp.q} {}
+
         template<std::size_t Index>
         std::tuple_element_t<Index, mkt_params<T>>& get() &
         {

@@ -59,7 +59,10 @@ namespace bsm {
 
         double psi() override {
             pricing_params<double> bumped_up {crr.pp};
-            bumped_up.q *= exp(0.01);
+            if(bumped_up.q!=0)
+                bumped_up.q *= exp(0.01);
+            else
+                bumped_up.q += 0.01;
             generic_crr_pricing_method<double> bumped_up_crr{instrument_, bumped_up, steps};
             bumped_up_crr.solve(calc_payoff,early_exercise);
             return (bumped_up_crr.price() - crr.price()) / (bumped_up.q - crr.pp.q);

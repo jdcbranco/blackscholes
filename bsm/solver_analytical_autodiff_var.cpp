@@ -36,7 +36,7 @@ namespace bsm {
         }
 
         double theta() override {
-            return val(derivativesx(init_price(), wrt(vp.tau))[0]);
+            return -val(derivativesx(init_price(), wrt(vp.tau))[0]);
         }
 
         double rho() override {

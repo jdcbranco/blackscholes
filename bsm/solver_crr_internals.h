@@ -106,7 +106,7 @@ namespace bsm {
                 auto V_ud = premium_tree(2,1);
                 int steps = premium_tree.size()-1;
                 auto dt = pp.tau / steps;
-                return (V-V_ud)/(2*dt);
+                return (V_ud-V)/(2*dt);
             }
 
             void solve(std::function<calc_payoff_type<T>> calc_payoff, bool early_exercise_possible) {
