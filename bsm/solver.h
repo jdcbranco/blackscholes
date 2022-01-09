@@ -94,9 +94,13 @@ namespace bsm {
     struct crr_solver {
         mkt_params<double> mktParams;
         const int steps;
+        const int extra_steps;
     public:
-        inline crr_solver(mkt_params<double> const& mktParams, int steps): mktParams{mktParams}, steps{steps} {}
-        inline crr_solver(mkt_params<long double> const& mktParams, int steps): mktParams{mktParams}, steps{steps} {}
+        inline crr_solver(mkt_params<double> const& mktParams, int steps, int extra_steps = 0):
+            mktParams{mktParams}, steps{steps}, extra_steps{extra_steps} {
+            assert(("Extra steps must be even",extra_steps%2==0));
+        }
+        inline crr_solver(mkt_params<long double> const& mktParams, int steps, int extra_steps = 0): mktParams{mktParams}, steps{steps}, extra_steps{extra_steps} {}
         inline crr_solver(crr_solver const&) = default;
         inline crr_solver(crr_solver &&) noexcept = default;
 

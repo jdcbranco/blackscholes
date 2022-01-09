@@ -20,7 +20,7 @@ namespace bsm {
         template<typename T>
         struct pricing_params {
             T S;
-            double K;
+            long double K;
             T sigma;
             T tau;
             T r;
@@ -34,28 +34,36 @@ namespace bsm {
         };
 
         template<typename T>
-        struct generic_crr_pricing_method { //: pricing {
+        struct generic_crr_pricing_method {
         protected:
-            const int steps_;
+            const int steps;
+            const int shift;
             bintree<T> underlying_tree;
             bintree<T> premium_tree;
             T u_, d_, p_, discount_factor_;
         public:
             pricing_params<T> pp;
-            generic_crr_pricing_method(instrument const& instrument, mkt_params<double> mp, int steps):
+            generic_crr_pricing_method(instrument const& instrument, mkt_params<double> mp, int steps, int shift = 0):
                     pp{instrument, mp},
-                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps_{steps} {
+                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps{steps}, shift{shift} {
                 generate_underlying_tree();
             }
-            generic_crr_pricing_method(instrument const& instrument, pricing_params<T> pp, int steps):
+            generic_crr_pricing_method(instrument const& instrument, pricing_params<T> pp, int steps, int shift = 0):
                     pp{pp},
-                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps_{steps} {
+                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps{steps}, shift{shift} {
                 generate_underlying_tree();
             }
 
+            T pt(int i, int j) {
+                return premium_tree(i + shift, j + shift / 2);
+            }
+
+            T ut(int i, int j) {
+                return underlying_tree(i + shift, j + shift / 2);
+            }
+
             void generate_underlying_tree() {
-                int steps = premium_tree.size()-1;
-                auto dt = pp.tau / steps;
+                auto dt = pp.tau / (steps - shift);
                 auto sqrt_dt = sqrt(dt);
                 auto u = u_ = exp(pp.sigma * sqrt_dt);
                 auto d = d_ = exp(-pp.sigma * sqrt_dt);
@@ -76,42 +84,36 @@ namespace bsm {
             }
 
             T price() {
-                return premium_tree.root();
+                return pt(0,0);
             }
 
             T delta() {
-                auto [V_start, V_end] = premium_tree(1);
-                auto [S_start, S_end] = underlying_tree(1);
-                auto V_up = *V_start;
-                auto V_down = *(V_start+1);
-                auto S_up = *S_start;
-                auto S_down = *(S_start+1);
+                auto V_up   = pt(1,0);
+                auto V_down = pt(1,1);
+                auto S_up   = ut(1,0);
+                auto S_down = ut(1,1);
                 return (V_up - V_down)/(S_up - S_down);
             }
 
             T gamma() {
-                auto [V_start, V_end] = premium_tree(2);
-                auto [S_start, S_end] = underlying_tree(2);
-                auto V_uu = *V_start;
-                auto V_ud = *(V_start+1);
-                auto V_dd = *(V_start+2);
-                auto S_uu = *S_start;
-                auto S_ud = *(S_start+1);
-                auto S_dd = *(S_start+2);
+                auto V_uu = pt(2,0);
+                auto V_ud = pt(2,1);
+                auto V_dd = pt(2,2);
+                auto S_uu = ut(2,0);
+                auto S_ud = ut(2,1);
+                auto S_dd = ut(2,2);
                 return ( (V_uu-V_ud)/(S_uu-S_ud) - (V_ud-V_dd)/(S_ud-S_dd) )/((S_uu - S_dd)/2.0);
             }
 
             T theta() {
-                auto V = premium_tree.root();
-                auto V_ud = premium_tree(2,1);
-                int steps = premium_tree.size()-1;
-                auto dt = pp.tau / steps;
+                auto V    = pt(0,0);
+                auto V_ud = pt(2,1);
+                auto dt = pp.tau / (steps - shift);
                 return (V_ud-V)/(2*dt);
             }
 
             void solve(std::function<calc_payoff_type<T>> calc_payoff, bool early_exercise_possible) {
-                auto steps = premium_tree.size();
-                auto last_t = steps-1;
+                auto last_t = steps;
                 auto p = p_;
                 auto discount_factor = discount_factor_;
                 {
@@ -120,7 +122,7 @@ namespace bsm {
                     std::transform(std::execution::par_unseq, start, end, output, calc_payoff);
                 }
 
-                std::vector<int> indices(steps);
+                std::vector<int> indices(premium_tree.size());
                 std::iota(indices.begin(),indices.end(), 0);
                 for(int t = last_t-1; t>=0; t--) {
                     auto start = indices.begin();

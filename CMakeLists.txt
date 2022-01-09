@@ -11,7 +11,7 @@ find_package(Eigen3 REQUIRED)
 find_package(benchmark REQUIRED)
 
 #bsm library
-add_library(bsm STATIC main.cpp random.cpp random.h bsm/bsm.h bsm/instruments.cpp bsm/instruments.h bsm/solver.h bsm/chrono.h bsm/chrono.cpp bsm/solver_analytical.cpp bsm/solver_analytical_autodiff_dual.cpp bsm/solver_analytical_autodiff_var.cpp bsm/bintree.h bsm/solver_crr.cpp bsm/solver_crr_internals.h bsm/solver_fastamerican.cpp bsm/solver_qdplus.cpp bsm/solver_analytical_internals.h)
+add_library(bsm STATIC main.cpp random.cpp random.h bsm/bsm.h bsm/instruments.cpp bsm/instruments.h bsm/solver.h bsm/chrono.h bsm/chrono.cpp bsm/solver_analytical.cpp bsm/solver_analytical_autodiff_dual.cpp bsm/solver_analytical_autodiff_var.cpp bsm/bintree.h bsm/solver_crr.cpp bsm/solver_crr_internals.h bsm/solver_fastamerican.cpp bsm/solver_qdplus.cpp bsm/solver_analytical_internals.h bsm/solver_american_internals.h)
 target_include_directories(bsm PRIVATE eigen3 bsm)
 target_link_libraries(bsm autodiff::autodiff Eigen3::Eigen)
 

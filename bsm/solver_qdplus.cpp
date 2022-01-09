@@ -1,5 +1,6 @@
 #include "solver.h"
 #include "solver_analytical_internals.h"
+#include "solver_american_internals.h"
 
 #include <autodiff/forward/dual.hpp>
 
@@ -31,9 +32,9 @@ namespace bsm {
                 N{2.0L*(this->r-this->q)/(this->sigma*this->sigma)}
         {}
 
-        bool never_optimal_exercise() {
-            return call ? (this->q<=0 and (this->q <= this->r)) : (this->r <= 0 and (this->r <= this->q));
-        }
+//        bool never_optimal_exercise() {
+//            return never_optimal_exercise<T>(*this,call); //call ? (this->q<=0 and (this->q <= this->r)) : (this->r <= 0 and (this->r <= this->q));
+//        }
 
         /**
          * Calculates price based on exercise boundary
@@ -52,7 +53,7 @@ namespace bsm {
                 return K - S;
             } else {
                 auto european_option = call ? calculate_european_call<T>(*this) : calculate_european_put<T>(*this);
-                if (never_optimal_exercise())
+                if (never_optimal_exercise<T>(*this,call))
                     return european_option;
                 else {
                     auto european_option_at_boundary = call ? calculate_european_call<T>(*(this->clone(val(Sb), tau))) : calculate_european_put<T>(*(this->clone(val(Sb), tau)));
@@ -101,23 +102,11 @@ namespace bsm {
         T calculate_exercise_boundary(T const& tau) {
             auto& r = this->r;
             auto& q = this->q;
-            if(never_optimal_exercise()) {
+            if(never_optimal_exercise<T>(*this,call)) {
                 return call? INFINITY : 0.0;
             }
             if(tau==0) {
-                if(call) {
-                    if(r<=q) {
-                        return this->K;
-                    } else {
-                        return this->K * r/q;
-                    }
-                } else {
-                    if(r>=q) {
-                        return this->K;
-                    } else {
-                        return this->K * r/q;
-                    }
-                }
+                return exercise_boundary_at_maturity<T>(*this,call ? instrument_type::call : instrument_type::put);
             }
 
             T Sb = this->K;
