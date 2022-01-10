@@ -32,10 +32,6 @@ namespace bsm {
                 N{2.0L*(this->r-this->q)/(this->sigma*this->sigma)}
         {}
 
-//        bool never_optimal_exercise() {
-//            return never_optimal_exercise<T>(*this,call); //call ? (this->q<=0 and (this->q <= this->r)) : (this->r <= 0 and (this->r <= this->q));
-//        }
-
         /**
          * Calculates price based on exercise boundary
          * @param Sb Exercise boundary

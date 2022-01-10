@@ -8,7 +8,7 @@
 namespace bsm {
     using namespace bsm::chrono;
 
-    template<typename T = double> //requires std::floating_point<T> //, typename CLOCK = system_clock
+    template<typename T = double>
     struct mkt_params {
         T S;
         T sigma;
@@ -17,11 +17,6 @@ namespace bsm {
         T q;
 
         mkt_params(T const& S, T const& sigma, datetime const& t, T const& r, T const& q):
-                S{S}, sigma{sigma}, t{t}, r{r}, q{q}
-        {
-        }
-
-        mkt_params(T const& S, T const& sigma, std::chrono::year_month_day const& t, T const& r, T const& q):
                 S{S}, sigma{sigma}, t{t}, r{r}, q{q}
         {
         }
