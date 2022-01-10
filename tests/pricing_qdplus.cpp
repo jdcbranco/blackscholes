@@ -62,6 +62,9 @@ TEST_CASE("American Call Pricing using QD+ approximation method matches the Bino
     CHECK(qdplus_method->rho() == Approx(crr_method->rho()).epsilon(0.005));
     CHECK(qdplus_method->psi() == Approx(crr_method->psi()).epsilon(0.005));
 
+    //Early exercise boundary for calls. These dont match but kept here for reference
+    //CHECK(qdplus_method->exercise_boundary(0.5) == Approx(crr_method->exercise_boundary(0.5)).margin(0.005));
+
 }
 
 TEST_CASE("American Put Pricing using QD+ approximation method matches the Binomial tree" ) {
@@ -73,8 +76,8 @@ TEST_CASE("American Put Pricing using QD+ approximation method matches the Binom
     auto q = 0.05L;
     mkt_params<long double> mktParams{S, sigma, t, r, q};
     american_put americanPut{K, t + 0.5_years};
-    qdplus_solver solve{mktParams};
 
+    qdplus_solver solve{mktParams};
     auto qdplus_method = solve(americanPut);
 
     //This number to which we compare to is taken from Binomial method (CRR)
@@ -85,6 +88,10 @@ TEST_CASE("American Put Pricing using QD+ approximation method matches the Binom
     CHECK(qdplus_method->vega() == Approx(27.4428949973).epsilon(0.005));
     CHECK(qdplus_method->rho() == Approx(-29.049575029).epsilon(0.005));
     CHECK(qdplus_method->psi() == Approx(25.7710879181).epsilon(0.03));
+
+    //crr_solver solve_crr{mktParams,2000,200};
+    //auto crr_method = solve_crr(americanPut);
+    //CHECK(qdplus_method->exercise_boundary(0.5) == Approx(crr_method->exercise_boundary(0.5)).margin(0.005));
 }
 
 TEST_CASE("American Put Pricing using QD+ approximation method matches results from the original paper, table 7, page 25 (sigma = 0.20)") {
@@ -96,14 +103,16 @@ TEST_CASE("American Put Pricing using QD+ approximation method matches results f
     auto q = 0.0;
     mkt_params<long double> mktParams{S, sigma, t, r, q};
     american_put americanPut{K, t + 0.583_years};
-    qdplus_solver solve{mktParams};
-    crr_solver solve_crr{mktParams,5000};
 
+    qdplus_solver solve{mktParams};
     auto qdplus_method = solve(americanPut);
-    auto crr_method = solve_crr(americanPut);
 
     CHECK(qdplus_method->price() == Approx(5.253).margin(0.0005));
     CHECK(qdplus_method->exercise_boundary(0.583) == Approx(37.49).margin(0.005));
+
+    crr_solver solve_crr{mktParams,2000,200};
+    auto crr_method = solve_crr(americanPut);
+    CHECK(qdplus_method->exercise_boundary(0.583) == Approx(crr_method->exercise_boundary(0.583)).epsilon(0.005));
 }
 
 
@@ -117,9 +126,12 @@ TEST_CASE("American Put Pricing using QD+ approximation method matches results f
     mkt_params<long double> mktParams{S, sigma, t, r, q};
     american_put americanPut{K, t + 0.3333333_years};
     qdplus_solver solve{mktParams};
-
     auto qdplus_method = solve(americanPut);
 
     CHECK(qdplus_method->price() == Approx(5.687).margin(0.0005));
     CHECK(qdplus_method->exercise_boundary(0.3333333) == Approx(34.68).margin(0.005));
+
+    crr_solver solve_crr{mktParams,2000,200};
+    auto crr_method = solve_crr(americanPut);
+    CHECK(qdplus_method->exercise_boundary(0.3333333) == Approx(crr_method->exercise_boundary(0.3333333)).epsilon(0.005));
 }

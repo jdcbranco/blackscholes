@@ -128,9 +128,12 @@ TEST_CASE("American Put Pricing using Binomial Tree (CRR) using Extra Steps") {
     auto q = 0.05;
     mkt_params mktParams{S, sigma, t, r, q};
     american_put americanPut{K, t + 0.5_years};
-    crr_solver solve{mktParams,2000,200};
 
+    crr_solver solve{mktParams,2000,200};
     auto crrPricing = solve(americanPut);
+
+    auto exercise_boundary = crrPricing->exercise_boundary(0.5);
+    std::cout << "Exercise boundary = " << exercise_boundary << std::endl;
 
     //These are for q=0.05
     //These numbers are taken from the algo itself, so not correct, but roughly in line with online calculators

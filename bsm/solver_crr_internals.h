@@ -10,6 +10,7 @@
 #include <iostream>
 #include <algorithm>
 #include <execution>
+#include <utility>
 
 namespace bsm {
     namespace internals {
@@ -38,24 +39,25 @@ namespace bsm {
         protected:
             const int steps;
             const int shift;
+            const instrument_type type;
             bintree<T> underlying_tree;
-            bintree<T> premium_tree;
+            bintree<std::pair<T,bool>> premium_tree;
             T u_, d_, p_, discount_factor_;
         public:
             pricing_params<T> pp;
             generic_crr_pricing_method(instrument const& instrument, mkt_params<double> mp, int steps, int shift = 0):
                     pp{instrument, mp},
-                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps{steps}, shift{shift} {
+                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps{steps}, shift{shift}, type{instrument.type} {
                 generate_underlying_tree();
             }
             generic_crr_pricing_method(instrument const& instrument, pricing_params<T> pp, int steps, int shift = 0):
                     pp{pp},
-                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps{steps}, shift{shift} {
+                    underlying_tree{steps + 1}, premium_tree{steps + 1}, steps{steps}, shift{shift}, type{instrument.type} {
                 generate_underlying_tree();
             }
 
             T pt(int i, int j) {
-                return premium_tree(i + shift, j + shift / 2);
+                return premium_tree(i + shift, j + shift / 2).first;
             }
 
             T ut(int i, int j) {
@@ -70,7 +72,7 @@ namespace bsm {
                 p_ = (exp((pp.r - pp.q) * dt) - d) / (u - d);
                 discount_factor_ = exp(-pp.r * dt);
                 auto S = pp.S;
-                underlying_tree.set(0, 0, S); //TODO Implement some syntatic sugar: underlying_tree(0,0) = S;
+                underlying_tree.set(0, 0, S);
                 std::vector<int> indices(steps+1);
                 std::iota(indices.begin(),indices.end(), 0);
                 for (int t = 1; t <= steps; ++t) {
@@ -112,17 +114,20 @@ namespace bsm {
                 return (V_ud-V)/(2*dt);
             }
 
-            void solve(std::function<calc_payoff_type<T>> calc_payoff, bool early_exercise_possible) {
+            std::vector<T> solve(std::function<calc_payoff_type<T>> calc_payoff, bool early_exercise_possible) {
                 auto last_t = steps;
                 auto p = p_;
                 auto discount_factor = discount_factor_;
                 {
                     auto [start, end] = underlying_tree(last_t);
                     auto [output, _] = premium_tree(last_t);
-                    std::transform(std::execution::par_unseq, start, end, output, calc_payoff);
+                    std::transform(std::execution::par_unseq, start, end, output, [&calc_payoff](T const& price) {
+                        return std::make_pair(calc_payoff(price),false);
+                    }); //calc_payoff
                 }
 
                 std::vector<int> indices(premium_tree.size());
+                std::vector<T> boundary(premium_tree.size());
                 std::iota(indices.begin(),indices.end(), 0);
                 for(int t = last_t-1; t>=0; t--) {
                     auto start = indices.begin();
@@ -133,12 +138,72 @@ namespace bsm {
 
                     std::transform(std::execution::par_unseq, start, end, output,
                               [premium_next_step, p, discount_factor, early_exercise_possible, &calc_payoff, t, this](int i) {
-                                  auto premium_up = *(premium_next_step+i);
-                                  auto premium_down = *(premium_next_step+i+1);
-                                  auto continuation = (p*premium_up + (1.0-p)*premium_down)*discount_factor;
-                                  return early_exercise_possible? std::max(continuation, calc_payoff(this->underlying_tree(t,i))) : continuation;
+                                  std::pair<T,bool> premium_up = *(premium_next_step+i);
+                                  //auto premium_up = *(premium_next_step+i);
+                                  std::pair<T,bool> premium_down = *(premium_next_step+i+1);
+                                  auto continuation = (p*premium_up.first + (1.0-p)*premium_down.first)*discount_factor;
+                                  if(early_exercise_possible) {
+                                      T payoff = calc_payoff(this->underlying_tree(t,i));
+                                      if(payoff > continuation) {
+                                          return std::make_pair(payoff, true);
+                                      } else {
+                                          return std::make_pair(continuation,false);
+                                      }
+                                  } else {
+                                      return std::make_pair(continuation,false);
+                                  }
+                                  //return early_exercise_possible? std::make_pair(std::max(continuation, calc_payoff(this->underlying_tree(t,i))),true) : std::make_pair(continuation,false);
                               });
+
+                    if(early_exercise_possible) {
+                        //calc exercise boundary
+                        auto[start, end] = premium_tree(t);
+
+                        int b = -1;
+                        if (type == instrument_type::put) {
+                            for (auto it = start; it != end; it++) {
+                                if (it->second) {
+                                    b = it - start;
+                                    break;
+                                }
+                            }
+                            if(b>0) {
+                                //This approximation is based on paper "Discrete and continuous time approximations of the optiomal exercise boundary of American options - Basso, Nardon, Pianca"
+                                auto den = premium_tree(t, b - 1).first - premium_tree(t, b).first + underlying_tree(t, b - 1) - underlying_tree(t, b);
+                                auto w1 = (premium_tree(t, b - 1).first - calc_payoff(underlying_tree(t, b - 1))) / den;
+                                auto w2 = (-premium_tree(t, b).first + calc_payoff(underlying_tree(t, b))) / den;
+                                boundary[t] = w1 * underlying_tree(t, b) + w2 * underlying_tree(t, b - 1);
+                            } else if (b==0) {
+                                boundary[t] = underlying_tree(t,b);
+                            } else {
+                                //dont know, we could repeat from the next step or use nan
+                                boundary[t] = boundary[t+1]*discount_factor;
+                            }
+
+                        } else if (type == instrument_type::call) {
+                            for (auto it = start; it != end; it++) {
+                                if (it->second) {
+                                    b = it - start;
+                                }
+                            }
+                            if(b>0 and b<t) {
+                                //Not sure this is correct, the paper didnt have a formula for it.
+                                auto den = premium_tree(t, b + 1).first - premium_tree(t, b).first + underlying_tree(t, b + 1) - underlying_tree(t, b);
+                                auto w1 = (premium_tree(t, b + 1).first - calc_payoff(underlying_tree(t, b + 1))) / den;
+                                auto w2 = (-premium_tree(t, b).first + calc_payoff(underlying_tree(t, b))) / den;
+                                boundary[t] = w1 * underlying_tree(t, b) + w2 * underlying_tree(t, b + 1);
+                            } else if (b==0) {
+                                boundary[t] = underlying_tree(t,b);
+                            } else {
+                                //dont know, we could repeat from the next step or use nan
+                                boundary[t] = boundary[t+1]*discount_factor;
+                            }
+                        }
+                    }
+
                 }
+
+                return boundary;
             }
 
             auto underlying() const {

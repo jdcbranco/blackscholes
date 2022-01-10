@@ -16,7 +16,12 @@ namespace bsm {
         template<typename T>
         inline bool never_optimal_exercise(pricing<T> const& p, instrument_type const& type) {
             assert(("Haven't implemented optimal exercise for non-options", type==instrument_type::call or type==instrument_type::put));
-            return call ? (p.q<=0 and (p.q <= p.r)) : (p.r <= 0 and (p.r <= p.q));
+            if (type==instrument_type::call)
+                return (p.q<=0 and (p.q <= p.r));
+            else if(type==instrument_type::put)
+                    return (p.r <= 0 and (p.r <= p.q));
+            else
+                return false;
         }
 
         template<typename T>

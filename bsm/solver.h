@@ -107,8 +107,8 @@ namespace bsm {
         std::unique_ptr<method> operator()(european_forward& instrument);
         std::unique_ptr<method> operator()(european_call& instrument);
         std::unique_ptr<method> operator()(european_put& instrument);
-        std::unique_ptr<method> operator()(american_call& instrument);
-        std::unique_ptr<method> operator()(american_put& instrument);
+        std::unique_ptr<american_method> operator()(american_call& instrument);
+        std::unique_ptr<american_method> operator()(american_put& instrument);
     };
 
     template<typename AD = autodiff_off>
