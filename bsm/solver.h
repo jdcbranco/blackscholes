@@ -59,7 +59,7 @@ namespace bsm {
                 r{r}, q{q} {}
         pricing(pricing const&) = default;
         pricing(pricing &&) noexcept = default;
-        std::unique_ptr<pricing<T>> clone(T const& S, T const& tau) {
+        std::unique_ptr<pricing<T>> clone(T const& S, T const& tau) const {
             pricing<T> copy{*this};
             copy.S = S;
             copy.tau = tau;
@@ -109,6 +109,19 @@ namespace bsm {
         std::unique_ptr<method> operator()(european_put& instrument);
         std::unique_ptr<american_method> operator()(american_call& instrument);
         std::unique_ptr<american_method> operator()(american_put& instrument);
+    };
+
+    //Superpositioned Binomial Lattice solver
+    template<typename AD = autodiff_off>
+    struct sbl_solver {
+        mkt_params<double> mktParams;
+        const int steps;
+        inline sbl_solver(mkt_params<double> const& mktParams, int steps) : mktParams{mktParams}, steps{steps} {}
+        inline sbl_solver(sbl_solver const&) = default;
+        inline sbl_solver(sbl_solver &&) noexcept = default;
+
+        std::unique_ptr<american_method> operator()(american_put& instrument);
+
     };
 
     template<typename AD = autodiff_off>

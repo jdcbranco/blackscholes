@@ -200,7 +200,6 @@ namespace bsm {
                             }
                         }
                     }
-
                 }
 
                 return boundary;

@@ -146,3 +146,25 @@ TEST_CASE("American Put Pricing using Binomial Tree (CRR) using Extra Steps") {
     CHECK(crrPricing->psi() == Approx(25.7710879181).epsilon(0.005));
 
 }
+TEST_CASE("Test New Superpositioned Binomial Lattice method") {
+    auto K = 100.0;
+    auto S = 100.0;
+    auto sigma = 0.20;
+    auto t = system_clock::now();
+    auto r = 0.01;
+    auto q = 0.05;
+    mkt_params mktParams{S, sigma, t, r, q};
+    american_put americanPut{K, t + 0.5_years};
+
+    sbl_solver solve{mktParams,200};
+    auto sbl_method = solve(americanPut);
+
+    crr_solver solve_crr{mktParams,2000,200};
+    auto crr_method = solve_crr(americanPut);
+
+    auto crr_price = crr_method->price();
+    auto exercise_boundary = crr_method->exercise_boundary(0.5);
+    std::cout << "Price using CRR = " << crr_price << std::endl;
+    std::cout << "Exercise boundary using CRR = " << exercise_boundary << std::endl;
+
+}

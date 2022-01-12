@@ -20,6 +20,23 @@ int main() {
     A.precede(B, C);  // A runs before B and C
     D.succeed(B, C);  // D runs after  B and C
 
+    int* vec;
+    int first, last;
+
+    auto init = taskflow.emplace([&](){
+        first = 0;
+        last  = 1000;
+        vec = new int[1000];
+    });
+
+    auto pf = taskflow.for_each_index(std::ref(first), std::ref(last), 1,
+                                      [&] (int i) {
+                                          std::cout << "parallel iteration on index " << vec[i] << '\n';
+                                      }
+    );
+
+    init.precede(pf);
+
     executor.run(taskflow).wait();
 
     return 0;

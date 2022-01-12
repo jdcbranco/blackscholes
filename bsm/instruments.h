@@ -83,6 +83,8 @@ namespace bsm {
     struct american_put: american {
         american_put(long double strike, datetime const& maturity): american{strike, maturity, instrument_type::put} {}
         american_put(long double strike, year_month_day const& maturity): american{strike, maturity, instrument_type::put} {}
+        american_put(american_put const&) = default;
+        american_put(american_put &&) noexcept = default;
         inline long double payoff(long double price) const override {
             return std::max(K - price, 0.0L);
         }

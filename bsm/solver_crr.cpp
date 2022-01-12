@@ -124,7 +124,7 @@ namespace bsm {
 
     template<>
     std::unique_ptr<american_method> crr_solver<autodiff_off>::operator()(american_put& instrument) {
-    crr_pricing_method gp{instrument, mktParams, steps, extra_steps };
+        crr_pricing_method gp{instrument, mktParams, steps, extra_steps };
         return std::make_unique<crr_pricing_method>(gp);
     }
 
