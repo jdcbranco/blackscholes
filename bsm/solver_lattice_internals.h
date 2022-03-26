@@ -41,6 +41,7 @@ namespace bsm {
             superpositioned_binomial_lattice_method(superpositioned_binomial_lattice_method const&) = default;
             superpositioned_binomial_lattice_method(superpositioned_binomial_lattice_method &&) noexcept = default;
 
+
             void solve(pricing<T> const& p) {
 
                 tf::Executor executor;
@@ -54,7 +55,10 @@ namespace bsm {
                 //int limit_up = 6*sqrt(steps);
                 int limit = 8*sqrt(steps);
                 int height = 2 * limit + 1;
-                limit /= 2;
+                if(instrument->type==instrument_type::put)
+                    limit /= 2;
+                else if(instrument->type==instrument_type::call)
+                    limit *= 1.5;
 
                 auto map_index = [limit] (int i) {
                     return limit-i;
@@ -67,9 +71,10 @@ namespace bsm {
                 auto prob = (exp((p.r - p.q) * dt) - d) / (u - d);
                 auto df = exp(-p.r * dt); //discount factor
 
-                std::vector<T> und(height);
+                std::vector<T> underlying(height);
                 std::vector<node<T>> layer1(height);
                 std::vector<node<T>> layer2(height);
+                std::vector<T> boundary(steps);
 
                 std::vector<tf::Task> tasks;
 
@@ -77,10 +82,10 @@ namespace bsm {
                 auto initialization_task = taskflow.for_each_index(0, height, 1, [&](int i) {
                     auto k = map_index(i);
                     T S = p.S*pow(u,k); //exp(dsigma*k);
-                    und[i] = S;
+                    underlying[i] = S;
                     auto p2 = p.clone(S,dt);
                     T payoff = this->instrument->payoff(S);
-                    T continuation = this->blackScholes(*p2); //0.0;//
+                    T continuation = this->blackScholes(*p2);
                     if(payoff > continuation) {
                         layer1[i] = std::make_pair(payoff, true);
                     } else {
@@ -93,17 +98,20 @@ namespace bsm {
                 auto *out = &layer2;
                 auto *in = &layer1;
 
-                for (int t = steps-2; t >=0; --t) {
+                int tval = steps-2;
+                int *tptr = &tval;
+
+                for (int t = steps-2; t>=0; --t) {
 
                     tf::Task processing_task = taskflow.for_each_index(0, height, 1, [&](int i) {
                         auto k = map_index(i);
-                        T S = und[i];//p.S*pow(u,k); //this saves about 2%
+                        T S = underlying[i];//p.S*pow(u,k); //this saves about 2%
                         T payoff = this->instrument->payoff(S);
                         T continuation;
 
-                        if(i==0 or i==(height-1) or t==steps) {
+                        if(i==0 or i==(height-1)) {
                             auto p2 = p.clone(S,dt);
-                            continuation = this->blackScholes(*p2);//(*in)[i].first*df; //
+                            continuation = this->blackScholes(*p2);
                         } else {
                             T premium_up = (*in)[i-1].first;
                             T premium_down = (*in)[i+1].first;
@@ -115,6 +123,7 @@ namespace bsm {
                         } else {
                             (*out)[i] = std::make_pair(continuation,false);
                         }
+
                     });
 
                     tasks.back().precede(processing_task);
@@ -127,15 +136,85 @@ namespace bsm {
                     tasks.back().precede(swap_task);
                     tasks.push_back(swap_task);
 
+                    tf::Task boundary_task = taskflow.emplace([&]() {
+                        int b = -1;
+                        int t = *tptr;
+                        if(instrument->type==instrument_type::put) {
+                            auto B = std::max_element(std::execution::par_unseq, out->begin(), out->end(),
+                                [](node<T> const &a, node<T> const &b) {
+                                  if (a.second == false and b.second == true) {
+                                      return true;
+                                  } else if (a.second == false and b.second == false) {
+                                      return a.first > b.first;
+                                  } else if (a.second == true and b.second == false) {
+                                      return false;
+                                  } else if (a.second == true and b.second == true) {
+                                      return a.first > b.first;
+                                  }
+                                });
+                            b = B - out->begin();
+                            //b = 10;
+                            if(b>0) {
+                                auto& premium = *in;
+                                //This approximation is based on paper "Discrete and continuous time approximations of the optiomal exercise boundary of American options - Basso, Nardon, Pianca"
+                                auto den = premium[b-1].first - premium[b].first + underlying[b-1] - underlying[b];
+                                auto w1 = (premium[b-1].first - this->instrument->payoff(underlying[b-1])) / den;
+                                auto w2 = (-premium[b].first + this->instrument->payoff(underlying[b])) / den;
+                                boundary[t] = w1 * underlying[b] + w2 * underlying[b-1];
+                            } else if (b==0) {
+                                boundary[t] = underlying[b];
+                            } else {
+                                //don't know, we could repeat from the next step
+                                boundary[t] = boundary[t+1]*df;
+                            }
+                        } else if(instrument->type==instrument_type::call) {
+                            auto B = std::max_element(std::execution::par_unseq, out->begin(), out->end(),
+                                [](node<T> const &a, node<T> const &b) {
+                                  if (a.second == false and b.second == true) {
+                                      return true;
+                                  } else if (a.second == false and b.second == false) {
+                                      return a.first < b.first;
+                                  } else if (a.second == true and b.second == false) {
+                                      return false;
+                                  } else if (a.second == true and b.second == true) {
+                                      return a.first < b.first;
+                                  }
+                                });
+                            b = B - out->begin();
+                            if(b>0 and b<t) {
+                                //Not sure this is correct, the paper didnt have a formula for it.
+                                auto den = (*in)[b+1].first - (*in)[b].first + underlying[b+1] - underlying[b];
+                                auto w1 = ((*in)[b+1].first - this->instrument->payoff(underlying[b+1])) / den;
+                                auto w2 = (-(*in)[b].first + this->instrument->payoff(underlying[b])) / den;
+                                boundary[t] = w1 * underlying[b] + w2 * underlying[b+1];
+                            } else if (b==0) {
+                                boundary[t] = underlying[b];
+                            } else {
+                                //don't know, we could repeat from the next step or use nan
+                                boundary[t] = boundary[t+1]*df;
+                            }
+                        }
+                        (*tptr) -= 1;
+                    });
+
+                    tasks.back().precede(boundary_task);
+                    tasks.push_back(boundary_task);
+
                 }
 
                 executor.run(taskflow).wait();
 
                 std::cout << std::boolalpha;
                 std::cout << "Result:" << std::endl;
-                for(int i = 0; i<height; i++) {
-                    std::cout << "index = " << map_index(i) << ", S = " << und[i] << ", P = " << (*in)[i].first << ", E = " << (*in)[i].second << std::endl;
+                for(int i=0; i<height; i++) {
+                    std::cout << "index = " << map_index(i) << ", S = " << underlying[i] << ", P = " << (*in)[i].first << ", E = " << (*in)[i].second << std::endl;
                 }
+                std::cout << "Boundary:" << std::endl;
+                for(int i=0; i<steps; i++) {
+                    std::cout << "Sb["<< i <<"] = " << boundary[i] << std::endl;
+                }
+
+                //TODO Complete this
 
             }
 

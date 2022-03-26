@@ -158,13 +158,17 @@ TEST_CASE("Test New Superpositioned Binomial Lattice method") {
 
     sbl_solver solve{mktParams,200};
     auto sbl_method = solve(americanPut);
+    auto sbl_price = sbl_method->price();
+    auto sbl_exercise_boundary = sbl_method->exercise_boundary(0.5);
 
     crr_solver solve_crr{mktParams,2000,200};
     auto crr_method = solve_crr(americanPut);
 
     auto crr_price = crr_method->price();
     auto exercise_boundary = crr_method->exercise_boundary(0.5);
-    std::cout << "Price using CRR = " << crr_price << std::endl;
-    std::cout << "Exercise boundary using CRR = " << exercise_boundary << std::endl;
+    std::cout << "Price using SBL = " << sbl_price << ", CRR = " << crr_price << std::endl;
+    std::cout << "Exercise boundary using SBL = " << sbl_exercise_boundary << ", CRR = " << exercise_boundary << std::endl;
+
+    //TODO: Complete the SBL
 
 }
